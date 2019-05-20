@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>ros_tmux</name>
+    <version>0.0.0</version>
+    <description>ROS launch alternative using tmux.</description>
+    <maintainer email="tpetricek@gmail.com">Tomas Petricek</maintainer>
+    <license>MIT</license>
+    <!-- CMake build to allow installing scripts on path (in devel). -->
+    <buildtool_depend>cmake</buildtool_depend>
+    <export>
+        <build_type>cmake</build_type>
+    </export>
+</package>

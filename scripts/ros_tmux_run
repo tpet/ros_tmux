@@ -1,0 +1,71 @@
+#!/bin/bash
+
+ros_tmux=`rospack find ros_tmux`
+conf=$ros_tmux/config/ros_tmux.conf
+log_dir=$ros_tmux/log/$1
+mkdir -p $log_dir
+log=$log_dir/$2.log
+echo Command: "$@" >> $log 2>&1
+echo Started: `date '+%Y-%m-%d %H:%M:%S'` >> $log 2>&1
+
+sess=$1
+win=$2
+
+# Source tmux config before starting new window (indexing from 1).
+# Avoid server stopping immediately due to no running session.
+# https://github.com/tmux/tmux/issues/736
+# Create session and window as needed, avoid printouts.
+tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/null 2>/dev/null \
+    || tmux start-server \; source "$conf" \; list-windows -t $sess | grep $win >/dev/null 2>/dev/null \
+    || tmux start-server \; source "$conf" \; new-window -d -n $win >/dev/null 2>/dev/null
+
+# Kill whatever is running there before running the program.
+tmux send-keys -t $sess:$win C-c
+
+# Avoiding striping spaces between arguments but use parameter expansion.
+#tmux send-keys -l -t $sess:$win '' \'"${@:3}"\'
+for arg in "${@:3}"
+do
+    tmux send-keys -t $sess:$win Space
+    # Avoid interpreting rosnode parameters by tmux.
+    # https://unix.stackexchange.com/questions/471997/escape-keywords-with-tmux-send
+    tmux send-keys -t $sess:$win -l '' "$arg"
+done
+# Redirect outputs.
+tmux send-keys -t $sess:$win Space '2>&1' Space '|' Space 'tee' Space '-a' Space
+tmux send-keys -t $sess:$win -l '' "$log"
+# TODO: Return when node dies (no signal), see below.
+# echo 'Before second spaced command.' >>"$log" 2>&1
+# tmux send-keys -t $sess:$win '\;' Space 'tmux' Space 'wait-for' Space '-S' Space
+# tmux send-keys -t $sess:$win -l '' "${win}_finished"
+tmux send-keys -t $sess:$win C-m
+
+sigint_node() {
+    echo "Forwarding SIGINT signal to node." >>"$log" 2>&1
+    tmux send-keys -t $sess:$win C-c
+    # https://stackoverflow.com/questions/7771557/how-to-terminate-a-window-in-tmux
+    # tmux kill-window -t $sess:$win
+}
+sigterm_node() {
+    echo "Forwarding SIGTERM signal to node." >>"$log" 2>&1
+    tmux send-keys -t $sess:$win C-\\
+    # tmux kill-window -t $sess:$win
+}
+
+trap sigint_node SIGINT
+trap sigterm_node SIGTERM
+
+# https://stackoverflow.com/questions/2935183/bash-infinite-sleep-infinite-blocking
+#echo 'Before sleep' >>"$log" 2>&1
+sleep infinity
+#echo 'After sleep' >>"$log" 2>&1
+
+# TODO: Return when node dies (no signal).
+# https://unix.stackexchange.com/questions/144663/have-tmux-wait-until-i-ssh-in-to-complete-rest-of-tmuxinator-script
+# This prevents clean shutdown via Ctrl-C.
+# echo 'Waiting for node started' >>"$log" 2>&1
+# tmux wait-for "${win}_finished"
+# echo 'Waiting for node finished' >>"$log" 2>&1
+
+echo Finished: `date '+%Y-%m-%d %H:%M:%S'` >> $log 2>&1
+exit 0

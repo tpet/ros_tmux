@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+from __future__ import absolute_import, division, print_function
+import os
+import roslaunch
+import sys
+
+
+def apply_tmux_prefix(node):
+    if node.launch_prefix:
+        print('Overriding launch prefix for node %s.' % node.name)
+    node.launch_prefix = 'ros_tmux_run %s %s ' % (launch_file, node.name)
+
+
+def use_screen_output(node):
+    if node.output == 'log':
+        print('Overriding output for node %s.' % node.name)
+    node.output = 'screen'
+
+
+def adjust_nodes(nodes):
+    for node in nodes:
+        apply_tmux_prefix(node)
+        use_screen_output(node)
+
+
+# TODO: Handle <package> <launch> arguments.
+launch_path = sys.argv[1]
+launch_file = os.path.basename(launch_path)
+# TODO: Replace/escape all characters which are invalid in session name.
+launch_file = launch_file.replace('.', '_')
+
+
+uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+roslaunch.configure_logging(uuid)
+launch = roslaunch.parent.ROSLaunchParent(uuid, [launch_path])
+
+# Start infrastructure in advance to parse the launch file into config.
+# (From the code, running it repeatedly seems to be safe.)
+launch._start_infrastructure()
+adjust_nodes(launch.config.nodes)
+
+# Parse the launch file (done), start roscore and nodes, advertise topics.
+# Nothing is published yet. (No handshake until spin?)
+launch.start()
+
+try:
+    launch.spin()
+finally:
+    # After Ctrl+C, stop all nodes from running
+    launch.shutdown()

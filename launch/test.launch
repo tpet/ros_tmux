@@ -1,0 +1,10 @@
+<launch>
+    <node name="echo_foo" pkg="rostopic" type="rostopic"
+          args="echo /foo" output="log"/>
+    <node name="echo_bar" pkg="rostopic" type="rostopic"
+          args="echo /bar" output="screen"/>
+    <node name="pub_foo" pkg="rostopic" type="rostopic"
+          args="pub -r 0.2 /foo std_msgs/Bool true" output="log"/>
+    <node name="pub_bar" pkg="rostopic" type="rostopic"
+          args="pub -r 0.5 /bar std_msgs/Bool true" output="screen"/>
+</launch>
