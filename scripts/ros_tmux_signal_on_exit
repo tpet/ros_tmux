@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+trap "tmux wait-for -S $1" EXIT
+"${@:2}"
