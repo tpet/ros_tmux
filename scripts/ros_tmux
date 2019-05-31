@@ -23,16 +23,15 @@ def adjust_nodes(nodes):
         use_screen_output(node)
 
 
-# TODO: Handle <package> <launch> arguments.
-launch_path = sys.argv[1]
-launch_file = os.path.basename(launch_path)
-# TODO: Replace/escape all characters which are invalid in session name.
-launch_file = launch_file.replace('.', '_')
-
+# Resolve <package> <launch> arguments.
+launch_paths = roslaunch.rlutil.resolve_launch_arguments(sys.argv[1:])
+# Use launch file as session name.
+# TODO: Replace/escape all invalid characters.
+launch_file = os.path.basename(launch_paths[0]).replace('.', '_')
 
 uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
 roslaunch.configure_logging(uuid)
-launch = roslaunch.parent.ROSLaunchParent(uuid, [launch_path])
+launch = roslaunch.parent.ROSLaunchParent(uuid, launch_paths)
 
 # Start infrastructure in advance to parse the launch file into config.
 # (From the code, running it repeatedly seems to be safe.)

@@ -9,9 +9,10 @@
 - Logs are appended to `ros_tmux/log/<launch_name>/<node_name>.log`.
 
 ## Usage
-```bash
+```
 ros_tmux <launch_path>
+ros_tmux <package> <launch_name>
 ```
 
-## Known Issues
-- Syntax `ros_tmux <package> <launch_name>` not supported.
+## TODO
+- Allow logging into `.ros/log/<run_id>` (parse provided `__log:=*.log`).
