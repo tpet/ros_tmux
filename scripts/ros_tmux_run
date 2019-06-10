@@ -1,79 +1,95 @@
 #!/bin/bash
 set -e
 
-date_fmt='+%Y-%m-%d %H:%M:%S.%N'
-started=`date "$date_fmt"`
-sess="$1"
-win="$2"
+ros_arg() {
+    for arg in "${@:2}"; do
+        if [[ $arg == "$1:="* ]]; then
+            start=`expr \${#1} + 2`
+            echo "${arg:${start}}"
+        fi
+    done
+}
 
-ros_tmux="`rospack find ros_tmux`"
-log_dir="$ros_tmux/log/$sess"
-mkdir -p "$log_dir"
-log="$log_dir/$win.log"
-echo Command: "$0" "$@" >> "$log" 2>&1
-echo Session: "$sess" >> "$log" 2>&1
-echo Window: "$win" >> "$log" 2>&1
-echo Node: "$3" >> "$log" 2>&1
+log() {
+    echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
+}
 
+run_id() {
+    rosparam get /run_id
+}
+
+date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
+node="`ros_arg __name \"$@\"`"
+log="`ros_arg __log \"$@\"`"
+if [[ "${ros_tmux_session}" = "run_id" ]]; then
+    run_id=`run_id`
+    sess=ros_tmux_${run_id}
+else
+    sess=ros_tmux
+fi
+win="${node}"
 # Create a unique tmux channel for this run, not to get confused by signals from other runs.
-runid="$(uuidgen)"
-echo "Started: $started [$runid]" >> $log 2>&1
+channel="$(uuidgen)"
+
+log Command: "$0" "$@"
+if [[ "$run_id" ]]; then
+    log Run ID: "${run_id}"
+fi
+log Node: "$1 [$node]"
+log Log: "$log"
+log Session: "$sess"
+log Window: "$win"
+log Channel: "$channel"
 
 # Source tmux config before starting new window (indexing from 1).
 # Avoid server stopping immediately due to no running session.
 # https://github.com/tmux/tmux/issues/736
 # Create session and window as needed, avoid printouts.
+ros_tmux="`rospack find ros_tmux`"
 conf=$ros_tmux/config/ros_tmux.conf
 tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/null 2>/dev/null \
     || tmux start-server \; source "$conf" \; list-windows -t $sess | grep $win >/dev/null 2>/dev/null \
     || tmux start-server \; source "$conf" \; new-window -d -n $win >/dev/null 2>/dev/null
 
 # Terminate whatever is running there before running the program.
-echo "(Terminating previous node if any.)" >> "$log" 2>&1
+log "Terminating previous node if any."
 tmux send-keys -t $sess:$win C-c
 
 # Avoiding striping spaces between arguments but use parameter expansion.
 # tmux send-keys -l -t $sess:$win '' \'"${@:3}"\'
-tmux send-keys -t $sess:$win "ros_tmux_signal_on_exit" Space "${runid}"
-for arg in "${@:3}"
+tmux send-keys -t $sess:$win "ros_tmux_node" Space "${channel}"
+for arg in "$@"
 do
     tmux send-keys -t $sess:$win Space
     # Avoid interpreting rosnode parameters by tmux.
     # https://unix.stackexchange.com/questions/471997/escape-keywords-with-tmux-send
     tmux send-keys -t $sess:$win -l '' "$arg"
 done
-# Redirect outputs.
-tmux send-keys -t $sess:$win Space '2>&1' Space '|' Space 'tee' Space '-a' Space
-tmux send-keys -t $sess:$win -l '' "$log"
 tmux send-keys -t $sess:$win C-m
-echo "Node started: `date \"$date_fmt\"` [$runid]" >> "$log" 2>&1
+log "Node started [$channel]."
 
 log_finish() {
-    # echo Finished: `date '+%Y-%m-%d %H:%M:%S'` >> "$log" 2>&1
-    echo "Finished: `date \"$date_fmt\"` [$runid]" >> $log 2>&1
-    echo >> "$log" 2>&1
+    log "Node finished [$channel].\n"
 }
 trap log_finish EXIT
 
 sigint_node() {
-    echo "Forwarding SIGINT signal to node." >> "$log" 2>&1
+    log "Forwarding SIGINT signal to node."
     tmux send-keys -t $sess:$win C-c
     # https://stackoverflow.com/questions/7771557/how-to-terminate-a-window-in-tmux
     # tmux kill-window -t $sess:$win
 }
 sigquit_node() {
-    echo "Forwarding SIGQUIT signal to node." >> "$log" 2>&1
+    log "Forwarding SIGQUIT signal to node."
     tmux send-keys -t $sess:$win C-\\
 }
 trap sigint_node SIGINT
 trap sigquit_node SIGQUIT SIGTERM
 
 # https://unix.stackexchange.com/questions/144663/have-tmux-wait-until-i-ssh-in-to-complete-rest-of-tmuxinator-script
-
-# This prevents clean shutdown via Ctrl-C (handlers don't get called before this returns).
+# Handlers don't get called before tmux wait-for returns which prevents clean shutdown via Ctrl-C.
 # tmux wait-for "${runid}"
-tmux wait-for "${runid}" &
+tmux wait-for "${channel}" &
 until wait; do
     true
 done
-echo "Node finished: `date \"$date_fmt\"` [$runid]" >> "$log" 2>&1

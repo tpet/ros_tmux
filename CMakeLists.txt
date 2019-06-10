@@ -5,7 +5,7 @@ install(
     PROGRAMS
         scripts/ros_tmux
         scripts/ros_tmux_run
-        scripts/ros_tmux_signal_on_exit
+        scripts/ros_tmux_node
     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
 )
 

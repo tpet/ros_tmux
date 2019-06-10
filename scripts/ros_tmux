@@ -1,19 +1,18 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, print_function
-import os
 import roslaunch
 import sys
 
 
 def apply_tmux_prefix(node):
     if node.launch_prefix:
-        print('Overriding launch prefix for node %s.' % node.name)
-    node.launch_prefix = 'ros_tmux_run %s %s ' % (launch_file, node.name)
+        print('[ros_tmux] Overriding launch prefix for node %s.' % node.name)
+    node.launch_prefix = 'ros_tmux_run '
 
 
 def use_screen_output(node):
     if node.output == 'log':
-        print('Overriding output for node %s.' % node.name)
+        print('[ros_tmux] Overriding output for node %s.' % node.name)
     node.output = 'screen'
 
 
@@ -23,14 +22,11 @@ def adjust_nodes(nodes):
         use_screen_output(node)
 
 
-# Resolve <package> <launch> arguments.
-launch_paths = roslaunch.rlutil.resolve_launch_arguments(sys.argv[1:])
-# Use launch file as session name.
-# TODO: Replace/escape all invalid characters.
-launch_file = os.path.basename(launch_paths[0]).replace('.', '_')
-
 uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
 roslaunch.configure_logging(uuid)
+
+# Resolve <package> <launch> arguments.
+launch_paths = roslaunch.rlutil.resolve_launch_arguments(sys.argv[1:])
 launch = roslaunch.parent.ROSLaunchParent(uuid, launch_paths)
 
 # Start infrastructure in advance to parse the launch file into config.

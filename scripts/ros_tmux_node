@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+ros_arg() {
+    for arg in "${@:2}"; do
+        if [[ $arg == "$1:="* ]]; then
+            start=`expr \${#1} + 2`
+            echo "${arg:${start}}"
+        fi
+    done
+}
+
+log="`ros_arg __log \"$@\"`"
+echo "Log: $log"
+
+trap "tmux wait-for -S $1" EXIT
+"${@:2}" 2>&1 | tee -a "$log"
