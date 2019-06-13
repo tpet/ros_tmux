@@ -55,16 +55,13 @@ tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/nul
 log "Terminating previous node if any."
 tmux send-keys -t $sess:$win C-c
 
+# TODO: Export environment.
+
 # Avoiding striping spaces between arguments but use parameter expansion.
 # tmux send-keys -l -t $sess:$win '' \'"${@:3}"\'
-tmux send-keys -t $sess:$win "ros_tmux_node" Space "${channel}"
-for arg in "$@"
-do
-    tmux send-keys -t $sess:$win Space
-    # Avoid interpreting rosnode parameters by tmux.
-    # https://unix.stackexchange.com/questions/471997/escape-keywords-with-tmux-send
-    tmux send-keys -t $sess:$win -l '' "$arg"
-done
+cmd="ros_tmux_node ${channel} $@"
+log Send keys: "$cmd"
+tmux send-keys -t $sess:$win -l '' "$cmd"
 tmux send-keys -t $sess:$win C-m
 log "Node started [$channel]."
 

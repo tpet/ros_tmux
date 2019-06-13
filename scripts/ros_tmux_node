@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
+
 ros_arg() {
     for arg in "${@:2}"; do
         if [[ $arg == "$1:="* ]]; then
@@ -10,8 +12,16 @@ ros_arg() {
     done
 }
 
+log() {
+    echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
+}
+
+ns="`ros_arg __ns \"$@\"`"
 log="`ros_arg __log \"$@\"`"
-echo "Log: $log"
+cmd="${@:2}"
+log "Node command: $cmd"
 
 trap "tmux wait-for -S $1" EXIT
-"${@:2}" 2>&1 | tee -a "$log"
+# Forward node-specific env variables.
+ROS_NAMESPACE="$ns" ROS_LOG_FILENAME="$log" "${@:2}" 2>&1 | tee -a "$log"
+log "Node return code: $?"

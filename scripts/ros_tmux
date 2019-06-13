@@ -1,24 +1,71 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, print_function
+# import os
 import roslaunch
 import sys
 
 
+def print_node_info(node):
+    for var in ('package',
+                'type',
+                'name',
+                'namespace',
+                'machine_name',
+                'args',
+                'remap_args',
+                'env_args',
+                'filename'):
+        print('%s: %s' % (var, node.__getattribute__(var)))
+
+
 def apply_tmux_prefix(node):
     if node.launch_prefix:
-        print('[ros_tmux] Overriding launch prefix for node %s.' % node.name)
+        # print('[ros_tmux] Overriding launch prefix "%s" for node %s.'
+        #       % (node.launch_prefix, node.name))
+        print('[ros_tmux] Prefixing launch prefix "%s" for node %s.'
+              % (node.launch_prefix, node.name))
+        node.launch_prefix = 'ros_tmux_run %s' % node.launch_prefix
+        return
     node.launch_prefix = 'ros_tmux_run '
 
 
 def use_screen_output(node):
     if node.output == 'log':
-        print('[ros_tmux] Overriding output for node %s.' % node.name)
+        print('[ros_tmux] Overriding output %s for node %s.'
+              % (node.output, node.name))
     node.output = 'screen'
+
+
+def set_env(node):
+    # node.env_args = node.env_args or []
+    # for var in ('CMAKE_PREFIX_PATH',
+    #             'DISPLAY',
+    #             'LD_LIBRARY_PATH',
+    #             'PATH',
+    #             'PKG_CONFIG_PATH',
+    #             'PYTHONPATH',
+    #             'ROS_DISTRO',
+    #             'ROS_ETC_DIR',
+    #             'ROS_MASTER_URI',
+    #             'ROS_PACKAGE_PATH',
+    #             'ROS_PYTHON_VERSION',
+    #             'ROS_ROOT',
+    #             'ROS_VERSION',
+    #             'ROSLISP_PACKAGE_DIRECTORIES',
+    #             'USER',
+    #             'USERNAME'):
+    #     node.env_args.append((var, os.getenv(var)))
+
+    # Forward ROS_NAMESPACE as a remap arg.
+    node.remap_args = node.remap_args or []
+    node.remap_args.append(('__ns', node.namespace[:-1]))
 
 
 def adjust_nodes(nodes):
     for node in nodes:
+        # print_node_info(node)
         apply_tmux_prefix(node)
+        set_env(node)
         use_screen_output(node)
 
 
