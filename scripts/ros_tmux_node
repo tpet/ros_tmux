@@ -20,7 +20,7 @@ log() {
 ns="`ros_arg __ns \"$@\"`"
 log="`ros_arg __log \"$@\"`"
 
-# Clean ros_tmux helper args ("__ns" remap causes issues in Kinetic).
+# Clean ros_tmux helper args.
 new_args=()
 for arg in "$@"; do
     if [[ "${arg::4}" != "__ns" ]]; then

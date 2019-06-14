@@ -37,9 +37,9 @@ def use_screen_output(node):
 
 
 def set_env(node):
-    # Forward ROS_NAMESPACE as a remap arg __ns (w/o trailing slash).
-    node.remap_args = node.remap_args or []
-    node.remap_args.append(('__ns', node.namespace))
+    # Forward ROS_NAMESPACE in args.
+    node.args = node.args or ''
+    node.args = '%s %s:=%s' % (node.args, '__ns', node.namespace)
 
 
 def adjust_nodes(nodes):
