@@ -19,13 +19,21 @@ log() {
 
 ns="`ros_arg __ns \"$@\"`"
 log="`ros_arg __log \"$@\"`"
-cmd="${@:2}"
-log "Node command: $cmd"
+
+# Clean ros_tmux helper args ("__ns" remap causes issues in Kinetic).
+new_args=()
+for arg in "$@"; do
+    if [[ "${arg::4}" != "__ns" ]]; then
+        new_args+=("$arg")
+    fi
+done
+set -- "${new_args[@]}"
 
 # Export env variables.
 export ROS_NAMESPACE="${ns::-1}"
 export ROS_LOG_FILENAME="$log"
 log "ROS env:\n`env | grep ROS`"
+log "Node command: ${@:2}"
 
 "${@:2}" 2>&1 | tee -a "$log"
 log "Node return code: $?"
