@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+trap "tmux wait-for -S $1" EXIT
 
 date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
 
@@ -21,7 +22,10 @@ log="`ros_arg __log \"$@\"`"
 cmd="${@:2}"
 log "Node command: $cmd"
 
-trap "tmux wait-for -S $1" EXIT
-# Forward node-specific env variables.
-ROS_NAMESPACE="$ns" ROS_LOG_FILENAME="$log" "${@:2}" 2>&1 | tee -a "$log"
+# Export env variables.
+export ROS_NAMESPACE="${ns::-1}"
+export ROS_LOG_FILENAME="$log"
+log "ROS env:\n`env | grep ROS`"
+
+"${@:2}" 2>&1 | tee -a "$log"
 log "Node return code: $?"

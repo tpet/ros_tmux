@@ -1,4 +1,9 @@
 <launch>
+    <!-- env-loader="/opt/ros/kinetic/env.sh" -->
+    <!-- env-loader="/home/$(env USER)/workspace/ros_tmux_catkin/devel/env.sh" -->
+    <machine name="remote" address="remote" user="$(env USER)" default="true"
+             env-loader="/home/$(env USER)/workspace/ros_tmux_catkin/devel/env.sh"/>
+
     <node name="echo_foo" pkg="rostopic" type="rostopic" args="echo foo" output="log" respawn="true"/>
     <node name="pub_foo" pkg="rostopic" type="rostopic" args="pub -r 1 foo std_msgs/Bool true" output="log"/>
 

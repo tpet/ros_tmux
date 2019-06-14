@@ -20,6 +20,7 @@ run_id() {
 
 date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
 node="`ros_arg __name \"$@\"`"
+ns="`ros_arg __ns \"$@\"`"
 log="`ros_arg __log \"$@\"`"
 if [[ "${ros_tmux_session}" = "run_id" ]]; then
     run_id=`run_id`
@@ -27,7 +28,8 @@ if [[ "${ros_tmux_session}" = "run_id" ]]; then
 else
     sess=ros_tmux
 fi
-win="${node}"
+ns_prefix=`echo "${ns:1}" | tr '/' '-'`
+win="${ns_prefix}${node}"
 # Create a unique tmux channel for this run, not to get confused by signals from other runs.
 channel="$(uuidgen)"
 
@@ -55,7 +57,7 @@ tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/nul
 log "Terminating previous node if any."
 tmux send-keys -t $sess:$win C-c
 
-# TODO: Export environment.
+# TODO: Forward env variables to the node (i.e., tmux window).
 
 # Avoiding striping spaces between arguments but use parameter expansion.
 # tmux send-keys -l -t $sess:$win '' \'"${@:3}"\'

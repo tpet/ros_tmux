@@ -37,28 +37,9 @@ def use_screen_output(node):
 
 
 def set_env(node):
-    # node.env_args = node.env_args or []
-    # for var in ('CMAKE_PREFIX_PATH',
-    #             'DISPLAY',
-    #             'LD_LIBRARY_PATH',
-    #             'PATH',
-    #             'PKG_CONFIG_PATH',
-    #             'PYTHONPATH',
-    #             'ROS_DISTRO',
-    #             'ROS_ETC_DIR',
-    #             'ROS_MASTER_URI',
-    #             'ROS_PACKAGE_PATH',
-    #             'ROS_PYTHON_VERSION',
-    #             'ROS_ROOT',
-    #             'ROS_VERSION',
-    #             'ROSLISP_PACKAGE_DIRECTORIES',
-    #             'USER',
-    #             'USERNAME'):
-    #     node.env_args.append((var, os.getenv(var)))
-
-    # Forward ROS_NAMESPACE as a remap arg.
+    # Forward ROS_NAMESPACE as a remap arg __ns (w/o trailing slash).
     node.remap_args = node.remap_args or []
-    node.remap_args.append(('__ns', node.namespace[:-1]))
+    node.remap_args.append(('__ns', node.namespace))
 
 
 def adjust_nodes(nodes):
@@ -78,7 +59,7 @@ launch = roslaunch.parent.ROSLaunchParent(uuid, launch_paths)
 
 # Start infrastructure in advance to parse the launch file into config.
 # (From the code, running it repeatedly seems to be safe.)
-launch._start_infrastructure()
+launch._load_config()
 adjust_nodes(launch.config.nodes)
 
 # Parse the launch file (done), start roscore and nodes, advertise topics.
