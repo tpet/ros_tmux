@@ -1,6 +1,4 @@
 <launch>
-    <!-- env-loader="/opt/ros/kinetic/env.sh" -->
-    <!-- env-loader="/home/$(env USER)/workspace/ros_tmux_catkin/devel/env.sh" -->
     <machine name="remote" address="remote" user="$(env USER)" default="true"
              env-loader="/home/$(env USER)/workspace/ros_tmux_catkin/devel/env.sh"/>
 
@@ -8,6 +6,7 @@
     <node name="pub_foo" pkg="rostopic" type="rostopic" args="pub -r 1 foo std_msgs/Bool true" output="log"/>
 
     <group ns="ns">
+        <env name="ROS_MASTER_URI" value="http://cras-10:11311"/>
         <node name="echo_bar" pkg="rostopic" type="rostopic" args="echo bar" output="screen" required="true"/>
         <node name="pub_bar" pkg="rostopic" type="rostopic" args="pub -r 1 bar std_msgs/Bool false" output="screen"/>
     </group>
