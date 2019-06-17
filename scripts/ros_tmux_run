@@ -12,6 +12,7 @@ ros_arg() {
 
 log() {
     echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
+#    echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$ROS_LOG_FILENAME" 2>&1
 }
 
 run_id() {
@@ -20,33 +21,45 @@ run_id() {
 
 date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
 node="`ros_arg __name \"$@\"`"
-ns="`ros_arg __ns \"$@\"`"
+#ns="`ros_arg __ns \"$@\"`"
+#ns="${ROS_NAMESPACE}"
+#ROS_NAMESPACE="`ros_arg __ns \"$@\"`"
 log="`ros_arg __log \"$@\"`"
+#ROS_LOG_FILENAME="`ros_arg __log \"$@\"`"
+ROS_LOG_FILENAME="$log"
 if [[ "${ros_tmux_session}" = "run_id" ]]; then
     run_id=`run_id`
     sess=ros_tmux_${run_id}
 else
     sess=ros_tmux
 fi
-ns_prefix=`echo "${ns:1}" | tr '/' '-'`
+#ns_prefix=`echo "${ns:1}/" | tr '/' '-'`
+if [[ ! -z "${ROS_NAMESPACE}" ]]; then
+    ns_prefix=`echo "${ROS_NAMESPACE:1}/" | tr '/' '-'`
+else
+    ns_prefix=
+fi
 win="${ns_prefix}${node}"
 # Create a unique tmux channel for this run, not to get confused by signals from other runs.
 channel="$(uuidgen)"
 
 log Command: "$0" "$@"
 if [[ "$run_id" ]]; then
-    log Run ID: "${run_id}"
+    log "Run ID: ${run_id}"
 fi
-log Node: "$1 [$node]"
-log Log: "$log"
-log Session: "$sess"
-log Window: "$win"
-log Channel: "$channel"
+log "Node: $1 [$node]"
+log "Log: $log"
+#log "Log: $ROS_LOG_FILENAME"
+log "Session: $sess"
+log "Window: $win"
+log "Channel: $channel"
+log "ROS env:\n`env | grep ROS`"
 
 # Source tmux config before starting new window (indexing from 1).
 # Avoid server stopping immediately due to no running session.
 # https://github.com/tmux/tmux/issues/736
 # Create session and window as needed, avoid printouts.
+log "Setting up session, configuration, and window (if needed)..."
 ros_tmux="`rospack find ros_tmux`"
 conf=$ros_tmux/config/ros_tmux.conf
 tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/null 2>/dev/null \
@@ -55,14 +68,24 @@ tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/nul
 
 # Terminate whatever is running there before running the program.
 log "Terminating previous node if any."
-tmux send-keys -t $sess:$win C-c
+tmux send-keys -t $sess:$win C-c C-m
+#sleep 0.001
 
-# TODO: Forward env variables to the node (i.e., tmux window).
+# Forward env variables to the node (i.e., tmux window).
+for var in ROS_HOSTNAME ROS_IP ROS_LOG_FILENAME ROS_MASTER_URI ROS_NAMESPACE; do
+    if [[ -z "${!var+x}" ]]; then
+        continue
+    fi
+    cmd="export ${var}=\"${!var}\""
+    log "Sending keys: $cmd"
+    tmux send-keys -t $sess:$win -l '' "$cmd"
+    tmux send-keys -t $sess:$win C-m
+done
 
 # Avoiding striping spaces between arguments but use parameter expansion.
 # tmux send-keys -l -t $sess:$win '' \'"${@:3}"\'
 cmd="ros_tmux_node ${channel} $@"
-log Send keys: "$cmd"
+log "Sending keys: $cmd"
 tmux send-keys -t $sess:$win -l '' "$cmd"
 tmux send-keys -t $sess:$win C-m
 log "Node started [$channel]."

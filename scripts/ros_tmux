@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function
 # import os
 import roslaunch
+# import rospy
 import sys
 
 
@@ -20,10 +21,8 @@ def print_node_info(node):
 
 def apply_tmux_prefix(node):
     if node.launch_prefix:
-        # print('[ros_tmux] Overriding launch prefix "%s" for node %s.'
-        #       % (node.launch_prefix, node.name))
-        print('[ros_tmux] Prefixing launch prefix "%s" for node %s.'
-              % (node.launch_prefix, node.name))
+        print('[ros_tmux] Adding launch prefix "%s" for node %s.' % (node.launch_prefix, node.name))
+        # rospy.loginfo('Adding launch prefix "%s" for node %s.', node.launch_prefix, node.name, logger_name='ros_tmux')
         node.launch_prefix = 'ros_tmux_run %s' % node.launch_prefix
         return
     node.launch_prefix = 'ros_tmux_run '
@@ -31,22 +30,39 @@ def apply_tmux_prefix(node):
 
 def use_screen_output(node):
     if node.output == 'log':
-        print('[ros_tmux] Overriding output %s for node %s.'
-              % (node.output, node.name))
+        print('[ros_tmux] Overriding output %s for node %s.' % (node.output, node.name))
+        # rospy.loginfo('Overriding output %s for node %s.', node.output, node.name, logger_name='ros_tmux')
     node.output = 'screen'
 
 
 def set_env(node):
-    # Forward ROS_NAMESPACE in args.
-    node.args = node.args or ''
-    node.args = '%s %s:=%s' % (node.args, '__ns', node.namespace)
+    # Forward ROS_NAMESPACE and some other env variables to node within tmux
+    # session in command-line args in form __env:=KEY=VALUE, keeping
+    # everything in a single command, which can be manually restarted.
+    # Process these args into exported env variables inside ros_tmux_node.
+    # Use current env as default to the variables defined in launch file.
+    # node.args = node.args or ''
+    # node.args = '%s %s:=%s' % (node.args, '__ns', node.namespace)
+
+    # node.env_args = node.env_args or []
+    # env = dict(node.env_args)
+    # Node-specific variables only:
+    # ROS_NAMESPACE forwarded as command line arg .
+    # and ROS_LOG_FILENAME
+    # env['ROS_NAMESPACE'] = node.namespace[:-1]
+    # for var in ('ROS_MASTER_URI', 'ROS_IP', 'ROS')
+
+    # node.args = '%s %s:=%s' % (node.args, '__env:ROS_NAMESPACE=%s', node.namespace[:-1])
+
+    # node.env_args = env.items()
+    pass
 
 
 def adjust_nodes(nodes):
     for node in nodes:
         # print_node_info(node)
         apply_tmux_prefix(node)
-        set_env(node)
+        # set_env(node)
         use_screen_output(node)
 
 

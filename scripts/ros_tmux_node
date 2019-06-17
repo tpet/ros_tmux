@@ -2,8 +2,6 @@
 set -e
 trap "tmux wait-for -S $1" EXIT
 
-date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
-
 ros_arg() {
     for arg in "${@:2}"; do
         if [[ $arg == "$1:="* ]]; then
@@ -17,21 +15,24 @@ log() {
     echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
 }
 
-ns="`ros_arg __ns \"$@\"`"
-log="`ros_arg __log \"$@\"`"
+date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
+log="$ROS_LOG_FILENAME"
+
+#ns="`ros_arg __ns \"$@\"`"
+#log="`ros_arg __log \"$@\"`"
 
 # Clean ros_tmux helper args.
-new_args=()
-for arg in "$@"; do
-    if [[ "${arg::4}" != "__ns" ]]; then
-        new_args+=("$arg")
-    fi
-done
-set -- "${new_args[@]}"
+#new_args=()
+#for arg in "$@"; do
+#    if [[ "${arg::4}" != "__ns" ]]; then
+#        new_args+=("$arg")
+#    fi
+#done
+#set -- "${new_args[@]}"
 
 # Export env variables.
-export ROS_NAMESPACE="${ns::-1}"
-export ROS_LOG_FILENAME="$log"
+#export ROS_NAMESPACE="${ns::-1}"
+#export ROS_LOG_FILENAME="$log"
 log "ROS env:\n`env | grep ROS`"
 log "Node command: ${@:2}"
 
