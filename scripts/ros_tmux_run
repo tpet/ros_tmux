@@ -18,10 +18,23 @@ run_id() {
     rosparam get /run_id
 }
 
+with_suffix() {
+    local suffix="$2"
+    local dir=`dirname "$1"`
+    local name=`basename "$1"`
+    local ext="${name##*.}"
+    name="${name%.*}"
+    echo "${dir}/${name}${suffix}.${ext}"
+}
+
 date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
-node="`ros_arg __name \"$@\"`"
-log="`ros_arg __log \"$@\"`"
+node=`ros_arg __name "$@"`
+log=`ros_arg __log "$@"`
+# Fix ROS log environment variable.
+# Sometimes var is not set for the node and some default from creating session is used.
 ROS_LOG_FILENAME="$log"
+log=`with_suffix "$log" -stdout`
+
 if [[ "${ros_tmux_session}" = "run_id" ]]; then
     run_id=`run_id`
     sess=ros_tmux_${run_id}
@@ -51,7 +64,7 @@ log "Session:window [channel]: $sess:$win [$channel]"
 # https://github.com/tmux/tmux/issues/736
 # Create session and window as needed, avoid printouts.
 log "Setting up session, configuration, and window (if needed)..."
-ros_tmux="`rospack find ros_tmux`"
+ros_tmux=`rospack find ros_tmux`
 conf=$ros_tmux/config/ros_tmux.conf
 tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/null 2>/dev/null \
     || tmux start-server \; source "$conf" \; list-windows -t $sess | grep $win >/dev/null 2>/dev/null \
@@ -62,11 +75,21 @@ log "Terminating previous node if any."
 tmux send-keys -t $sess:$win C-c
 
 # Forward env variables to the node (i.e., tmux window).
-for var in ROS_HOSTNAME ROS_IP ROS_LOG_FILENAME ROS_MASTER_URI ROS_NAMESPACE; do
+# ROS_LOG_FILENAME
+vars="
+ROS_HOSTNAME
+ROS_IP
+ROS_MASTER_URI
+ROS_NAMESPACE
+ROSCONSOLE_CONFIG_FILE
+ROSCONSOLE_FORMAT
+ROSCONSOLE_STDOUT_LINE_BUFFERED
+"
+for var in ${vars}; do
     if [[ -z "${!var+x}" ]]; then
         continue
     fi
-    cmd="export ${var}=\"${!var}\""
+    cmd="export ${var}='${!var}'"
     log "Sending keys: $cmd"
     tmux send-keys -t $sess:$win -l '' "$cmd"
     tmux send-keys -t $sess:$win C-m

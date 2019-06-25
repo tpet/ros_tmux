@@ -15,8 +15,28 @@ log() {
     echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
 }
 
+with_suffix() {
+    local suffix="$2"
+    local dir=`dirname "$1"`
+    local name=`basename "$1"`
+    local ext="${name##*.}"
+    name="${name%.*}"
+    echo "${dir}/${name}${suffix}.${ext}"
+}
+
 date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
-log="$ROS_LOG_FILENAME"
+# log="$ROS_LOG_FILENAME"
+log=`ros_arg __log "$@"`
+log=`with_suffix "$log" -stdout`
+
+# Define some handy defaults (do not override what is already set).
+# Python output buffering of single line.
+if [[ -z "${!PYTHONUNBUFFERED+x}" ]]; then
+    export PYTHONUNBUFFERED=1
+fi
+if [[ -z "${!ROSCONSOLE_STDOUT_LINE_BUFFERED+x}" ]]; then
+    export ROSCONSOLE_STDOUT_LINE_BUFFERED=1
+fi
 
 log "ROS env:\n`env | grep ROS`"
 log "Node command: ${@:2}"
