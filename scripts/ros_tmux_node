@@ -12,7 +12,12 @@ ros_arg() {
 }
 
 log() {
-    echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
+    local format=${ROSCONSOLE_FORMAT:-'${severity}] [${time}]: ${message}]'}
+    local severity="$1"
+    local walltime=`date "+%s.%6N"`
+    local message="$2"
+    local node=ros_tmux_node
+    eval echo -e "${format}" >> "$log" 2>&1
 }
 
 with_suffix() {
@@ -24,8 +29,6 @@ with_suffix() {
     echo "${dir}/${name}${suffix}.${ext}"
 }
 
-date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
-# log="$ROS_LOG_FILENAME"
 log=`ros_arg __log "$@"`
 log=`with_suffix "$log" -stdout`
 
@@ -38,8 +41,8 @@ if [[ -z "${!ROSCONSOLE_STDOUT_LINE_BUFFERED+x}" ]]; then
     export ROSCONSOLE_STDOUT_LINE_BUFFERED=1
 fi
 
-log "ROS env:\n`env | grep ROS`"
-log "Node command: ${@:2}"
+log INFO "ROS env:\n`env | grep ROS`"
+log INFO "Node command: ${@:2}"
 
-"${@:2}" 2>&1 | tee -a "$log"
-log "Node return code: $?"
+stdbuf -oL "${@:2}" 2>&1 | stdbuf -oL sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]//g" | tee -a "$log"
+log INFO "Node return code: $?"

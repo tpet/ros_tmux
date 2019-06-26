@@ -11,7 +11,12 @@ ros_arg() {
 }
 
 log() {
-    echo -e [ros_tmux] `date "$date_fmt"`: "$@" >> "$log" 2>&1
+    local format=${ROSCONSOLE_FORMAT:-'${severity}] [${time}]: ${message}]'}
+    local severity="$1"
+    local walltime=`date "+%s.%6N"`
+    local message="$2"
+    local node=ros_tmux_run
+    eval echo -e "${format}" >> "$log" 2>&1
 }
 
 run_id() {
@@ -27,12 +32,13 @@ with_suffix() {
     echo "${dir}/${name}${suffix}.${ext}"
 }
 
-date_fmt='+%Y-%m-%d %H:%M:%S.%3N'
 node=`ros_arg __name "$@"`
 log=`ros_arg __log "$@"`
-# Fix ROS log environment variable.
-# Sometimes var is not set for the node and some default from creating session is used.
+# Sometimes, ROS_LOG_FILENAME retains a value for some other node;
+# __log argument seems to always contain the correct value.
 ROS_LOG_FILENAME="$log"
+# Avoid conflicts with rosout publishing everything to the default log,
+# use log file with '-stdout' suffix.
 log=`with_suffix "$log" -stdout`
 
 if [[ "${ros_tmux_session}" = "run_id" ]]; then
@@ -50,20 +56,20 @@ win="${ns_prefix}${node}"
 # Create a unique tmux channel for this run, not to get confused by signals from other runs.
 channel="$(uuidgen)"
 
-log "Command: $0 $@"
+log INFO "Command: $0 $@"
 if [[ "$run_id" ]]; then
     log "Run ID: ${run_id}"
 fi
-log "Node: $1 [$node]"
-log "Log: $log"
-log "Session:window [channel]: $sess:$win [$channel]"
+log INFO "Node: $1 [$node]"
+log INFO "Log: $log"
+log INFO "Session:window [channel]: $sess:$win [$channel]"
 # log "ROS env:\n`env | grep ROS`"
 
 # Source tmux config before starting new window (indexing from 1).
 # Avoid server stopping immediately due to no running session.
 # https://github.com/tmux/tmux/issues/736
 # Create session and window as needed, avoid printouts.
-log "Setting up session, configuration, and window (if needed)..."
+log INFO "Setting up session, configuration, and window (if needed)..."
 ros_tmux=`rospack find ros_tmux`
 conf=$ros_tmux/config/ros_tmux.conf
 tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/null 2>/dev/null \
@@ -71,14 +77,14 @@ tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/nul
     || tmux start-server \; source "$conf" \; new-window -d -n $win >/dev/null 2>/dev/null
 
 # Terminate whatever is running there before running the program.
-log "Terminating previous node if any."
+log INFO "Terminating previous node if any."
 tmux send-keys -t $sess:$win C-c
 
 # Forward env variables to the node (i.e., tmux window).
-# ROS_LOG_FILENAME
 vars="
 ROS_HOSTNAME
 ROS_IP
+ROS_LOG_FILENAME
 ROS_MASTER_URI
 ROS_NAMESPACE
 ROSCONSOLE_CONFIG_FILE
@@ -90,7 +96,7 @@ for var in ${vars}; do
         continue
     fi
     cmd="export ${var}='${!var}'"
-    log "Sending keys: $cmd"
+    log INFO "Sending keys: $cmd"
     tmux send-keys -t $sess:$win -l '' "$cmd"
     tmux send-keys -t $sess:$win C-m
 done
@@ -98,24 +104,24 @@ done
 # Avoiding striping spaces between arguments but use parameter expansion.
 # tmux send-keys -l -t $sess:$win '' \'"${@:3}"\'
 cmd="ros_tmux_node ${channel} $@"
-log "Sending keys: $cmd"
+log INFO "Sending keys: $cmd"
 tmux send-keys -t $sess:$win -l '' "$cmd"
 tmux send-keys -t $sess:$win C-m
-log "Node started [$channel]."
+log INFO "Node started [$channel]."
 
 log_finish() {
-    log "Node finished [$channel].\n"
+    log INFO "Node finished [$channel].\n"
 }
 trap log_finish EXIT
 
 sigint_node() {
-    log "Forwarding SIGINT signal to node."
+    log INFO "Forwarding SIGINT signal to node."
     tmux send-keys -t $sess:$win C-c
     # https://stackoverflow.com/questions/7771557/how-to-terminate-a-window-in-tmux
     # tmux kill-window -t $sess:$win
 }
 sigquit_node() {
-    log "Forwarding SIGQUIT signal to node."
+    log INFO "Forwarding SIGQUIT signal to node."
     tmux send-keys -t $sess:$win C-\\
 }
 trap sigint_node SIGINT
