@@ -74,7 +74,7 @@ ros_tmux=`rospack find ros_tmux`
 conf=$ros_tmux/config/ros_tmux.conf
 tmux start-server \; source "$conf" \; new-session -d -s $sess -n $win >/dev/null 2>/dev/null \
     || tmux start-server \; source "$conf" \; list-windows -t $sess | grep $win >/dev/null 2>/dev/null \
-    || tmux start-server \; source "$conf" \; new-window -d -n $win >/dev/null 2>/dev/null
+    || tmux start-server \; source "$conf" \; new-window -t $sess -d -n $win >/dev/null 2>/dev/null
 
 # Terminate whatever is running there before running the program.
 log INFO "Terminating previous node if any."
